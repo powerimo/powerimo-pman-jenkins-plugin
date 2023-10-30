@@ -18,7 +18,6 @@ import org.powerimo.pman.dto.ShelfValue;
 
 import java.io.IOException;
 import java.util.Set;
-import java.util.UUID;
 
 @Slf4j
 public class GetValueTextStep extends BasePmanStep {
@@ -55,7 +54,7 @@ public class GetValueTextStep extends BasePmanStep {
 
 
     public static class GetValueStepExecutor extends BasePmanExecutor {
-        private static final long serialVersionUID = 895465461950089330L;
+        private static final long serialVersionUID = -8912678341956289050L;
 
         protected GetValueStepExecutor(BasePmanStep step, @Nonnull StepContext context) throws InterruptedException, IOException {
             super(step, context);
@@ -70,22 +69,12 @@ public class GetValueTextStep extends BasePmanStep {
 
         @Override
         protected Object run() {
-            var accountId = step.getAccountId();
-            var shelfId = step.getShelfId();
             var vName = getMyStep().getValueName();
 
             if (vName == null || vName.isEmpty()) {
                 throw new IllegalArgumentException("valueName argument must be not null");
             }
 
-            getConfig().setApiKey(step.getApiKey());
-
-/*            listener.getLogger().println("Getting value for accountId="
-                    + accountId.toString()
-                    + "; shelfId=" + shelfId
-                    + "; valueName=" + vName
-                    + "; url=" + getConfig().getUrl()
-            );*/
             log.info("getting value: {}", vName);
 
             ShelfValue shelfValue;
@@ -98,13 +87,17 @@ public class GetValueTextStep extends BasePmanStep {
                         .build();
             } else {
                 try {
-                    shelfValue = pmanHttpClient.getValue(accountId, shelfId, vName);
+                    shelfValue = pmanHttpClient.getValue(
+                            getEffectiveAccountId(),
+                            getEffectiveShelfId(),
+                            vName
+                    );
                     log.info("shelfValue: {}", shelfValue);
                 } catch (Exception ex) {
                     return ex.getMessage();
                 }
             }
-            //listener.getLogger().println("Got value: " + shelfValue.toString());
+            listener.getLogger().println("Got PMan value: " + shelfValue.getValue());
 
             return shelfValue.getValue();
         }

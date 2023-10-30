@@ -17,7 +17,6 @@ import org.powerimo.pman.dto.ShelfValue;
 
 import java.io.IOException;
 import java.util.Set;
-import java.util.UUID;
 
 @Getter
 public class GetValueStep extends BasePmanStep {
@@ -67,16 +66,14 @@ public class GetValueStep extends BasePmanStep {
         }
 
         @Override
-        protected Object run() {
-            var accountId = step.getAccountId();
-            var shelfId = step.getShelfId();
+        protected Object run() throws IOException, InterruptedException {
+            var accountId = getEffectiveAccountId();
+            var shelfId = getEffectiveShelfId();
             var vName = getValueStep().getValueName();
 
             if (vName == null || vName.isEmpty()) {
                 throw new IllegalArgumentException("valueName argument must be not null");
             }
-
-            getConfig().setApiKey(step.getApiKey());
 
             listener.getLogger().println("Getting value for accountId="
                     + accountId.toString()
@@ -94,9 +91,14 @@ public class GetValueStep extends BasePmanStep {
                         .description("DRY RUN SAMPLE VALUE")
                         .build();
             } else {
-                shelfValue = pmanHttpClient.getValue(accountId, shelfId, vName);
+                shelfValue = pmanHttpClient.getValue(
+                        accountId,
+                        shelfId,
+                        vName
+                );
             }
             listener.getLogger().println("Got value: " + shelfValue);
+            listener.getLogger().println("Result: " + shelfValue.getValue());
 
             return shelfValue;
         }

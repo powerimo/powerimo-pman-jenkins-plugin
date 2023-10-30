@@ -56,11 +56,23 @@ public abstract class BasePmanStep extends Step implements Serializable {
         }
     }
 
+    protected String getAccountIdStringFromApiKey() {
+        if (apiKey == null || !apiKey.contains(":")) {
+            return null;
+        }
+        return apiKey.substring(0, apiKey.indexOf(":"));
+    }
+
     protected UUID getShelfId() {
         try {
             return UUID.fromString(shelfId);
         } catch (Exception ex) {
-            throw new IllegalArgumentException("shelfId argument is not a valid UUID");
+            throw new IllegalArgumentException("shelfId argument is not a valid UUID: '" + shelfId + "'");
         }
     }
+
+    protected String getShelfIdString() {
+        return shelfId;
+    }
+
 }

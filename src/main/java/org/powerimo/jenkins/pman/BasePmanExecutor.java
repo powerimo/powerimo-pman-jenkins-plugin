@@ -1,5 +1,6 @@
 package org.powerimo.jenkins.pman;
 
+import hudson.EnvVars;
 import hudson.Launcher;
 import hudson.model.TaskListener;
 import hudson.security.ACL;
@@ -10,11 +11,11 @@ import hudson.util.NamingThreadFactory;
 import io.jenkins.cli.shaded.org.slf4j.MDC;
 import jakarta.annotation.Nonnull;
 import jenkins.model.Jenkins;
-import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.powerimo.http.okhttp.BaseOkHttpApiClientLocalConfig;
-import org.powerimo.http.okhttp.BaseOkHttpClientConfig;
+import org.powerimo.http.okhttp.DefaultPayloadConverter;
 import org.powerimo.pman.client.PmanHttpClient;
 
 import java.io.IOException;
@@ -24,6 +25,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+@Slf4j
 public abstract class BasePmanExecutor<T> extends StepExecution {
     private static ExecutorService executorService;
     private transient volatile Future<?> task;
@@ -43,9 +45,11 @@ public abstract class BasePmanExecutor<T> extends StepExecution {
 
         config = BaseOkHttpApiClientLocalConfig.builder()
                 .url("https://app.powerimo.cloud/pman")
+                .apiKey(getEffectiveApiKey())
                 .build();
         pmanHttpClient = new PmanHttpClient();
         pmanHttpClient.setConfig(config);
+        pmanHttpClient.setPayloadConverter(new DefaultPayloadConverter());
     }
 
     static synchronized ExecutorService getExecutorService() {
@@ -118,11 +122,74 @@ public abstract class BasePmanExecutor<T> extends StepExecution {
         return step != null ? step.getLogPrefix() : "[StepExecutor]";
     }
 
-    protected void checkApiKey() {
-        step.getAccountId();
-    }
-
     protected BaseOkHttpApiClientLocalConfig getConfig() {
         return config;
+    }
+
+    public UUID getShelfId() {
+        return step.getShelfId();
+    }
+
+    public String getValueName() {
+        return step.getValueName();
+    }
+
+    public void initPmanClient() {
+        try {
+            getConfig().setApiKey(getEffectiveApiKey());
+        } catch (Exception ex) {
+            throw new PmanJenkinsException("Exception on initializing PmanClient", ex);
+        }
+    }
+
+    protected String getEffectiveApiKey() throws IOException, InterruptedException {
+        if (step.getApiKey() != null)
+            return step.getApiKey();
+        EnvVars envVars = getContext().get(EnvVars.class);
+        return envVars.get(PluginConst.ENV_VAR_PMAN_API_KEY);
+    }
+
+    protected UUID getEffectiveShelfId() throws IOException, InterruptedException {
+        if (step.getShelfIdString() != null && !step.getShelfIdString().isEmpty()) {
+            log.debug("shelfId string ({}) will be converted to UUID", step.getShelfIdString());
+            return getShelfId();
+        }
+        log.trace("shelfId value for the step cannot be used: {}", step.getShelfIdString());
+        EnvVars envVars = getContext().get(EnvVars.class);
+        String s = envVars.get(PluginConst.ENV_VAR_PMAN_SHELF_ID);
+        var data = s != null ? UUID.fromString(s) : null;
+        log.info("extracted effective ShelfID: {}", data);
+        return data;
+    }
+
+    protected UUID getEffectiveAccountId() throws IOException, InterruptedException {
+        // get value from arguments
+        var s = step.getAccountIdStringFromApiKey();
+        if (s != null) {
+            try {
+                return UUID.fromString(s);
+            } catch (Exception ex) {
+                throw new IllegalArgumentException("apiKey argument doesn't contains a valid account ID (UUID)" );
+            }
+        }
+
+        // get value from EnvVars
+        EnvVars envVars = getContext().get(EnvVars.class);
+        assert envVars != null;
+        envVars.forEach((item, v) -> log.info(" env var: {}={}", item, v));
+
+        s = envVars.get(PluginConst.ENV_VAR_PMAN_API_KEY);
+        if (s == null) {
+            throw new PmanJenkinsException("No effective API Key found (parameter apiKey or environment variable " + PluginConst.ENV_VAR_PMAN_API_KEY);
+        }
+        log.info("PMAN_API_KEY={}", s);
+        try {
+            var accountPart = s.substring(0, s.indexOf(":"));
+            var accountId = UUID.fromString(accountPart);
+            log.info("extracted accountId: {}", accountId);
+            return accountId;
+        } catch (Exception ex) {
+            throw new IllegalArgumentException(PluginConst.ENV_VAR_PMAN_API_KEY + " environment variable doesn't contains a valid account ID (UUID)" );
+        }
     }
 }
