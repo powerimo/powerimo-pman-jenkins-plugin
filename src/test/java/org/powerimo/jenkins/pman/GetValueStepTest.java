@@ -10,8 +10,10 @@ import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.mockito.Mock;
+import org.powerimo.pman.dto.ShelfValue;
 
 import java.io.IOException;
+import java.util.UUID;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.when;
@@ -51,16 +53,16 @@ public class GetValueStepTest extends BaseTest {
 
     @Test
     public void GetValue_noParams() throws Exception {
-        final GetValueStep step = new GetValueStep("aaa");
+        final String apiKey = UUID.randomUUID() + ":mySecret";
+        final GetValueStep step = new GetValueStep(apiKey, UUID.randomUUID().toString(), "sampleValue");
         step.setDryRun(true);
         stepExecution = new GetValueStep.GetValueStepExecutor(step, contextMock);
-
 
         // Execute and assert Test.
         var result = stepExecution.run();
 
         Assertions.assertNotNull(result);
-        Assertions.assertEquals(String.class, result.getClass());
+        Assertions.assertEquals(ShelfValue.class, result.getClass());
         // Assertions.assertThrows(IllegalArgumentException.class, () -> stepExecution.run());
     }
 

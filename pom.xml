@@ -11,7 +11,7 @@
     <artifactId>powerimo-pman-jenkins-plugin</artifactId>
     <version>${revision}${changelist}</version>
     <packaging>hpi</packaging>
-    <name>Powerimo Properties Manager client</name>
+    <name>Powerimo Properties Manager Client</name>
     <description>Powerimo Properties Manager client (server and cloud)</description>
     <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
 
@@ -38,6 +38,9 @@
         <jenkins.version>2.387.3</jenkins.version>
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
         <spotless.check.skip>false</spotless.check.skip>
+
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
     </properties>
 
     <dependencyManagement>
@@ -53,11 +56,29 @@
         </dependencies>
     </dependencyManagement>
 
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+        </plugins>
+
+    </build>
+
     <dependencies>
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.18.28</version>
+        </dependency>
+        <dependency>
+            <groupId>org.powerimo</groupId>
+            <artifactId>powerimo-pman-api</artifactId>
+            <version>1.0.8</version>
         </dependency>
 
         <dependency>
@@ -100,6 +121,10 @@
         <repository>
             <id>repo.jenkins-ci.org</id>
             <url>https://repo.jenkins-ci.org/public/</url>
+        </repository>
+        <repository>
+            <id>repo.powerimo.cloud</id>
+            <url>https://nexus3.andewil.com/public/</url>
         </repository>
     </repositories>
     <pluginRepositories>

@@ -9,6 +9,7 @@ import hudson.model.Run;
 import hudson.model.TaskListener;
 import jakarta.annotation.Nonnull;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
@@ -19,10 +20,11 @@ import java.io.IOException;
 import java.util.Set;
 import java.util.UUID;
 
-@Getter
-public class GetValueStep extends BasePmanStep {
-    private static final long serialVersionUID = -6875024203992113582L;
+@Slf4j
+public class GetValueTextStep extends BasePmanStep {
+    private static final long serialVersionUID = 5188962788139782713L;
 
+    @Getter
     private final String valueName;
 
     @Extension
@@ -35,12 +37,12 @@ public class GetValueStep extends BasePmanStep {
 
         @Override
         public String getFunctionName() {
-            return "pmanGetValue";
+            return "pmanGetValueText";
         }
     }
 
     @DataBoundConstructor
-    public GetValueStep(String apiKey, String shelfId, String valueName) {
+    public GetValueTextStep(String apiKey, String shelfId, String valueName) {
         this.valueName = valueName;
         setApiKey(apiKey);
         setShelfId(shelfId);
@@ -59,9 +61,9 @@ public class GetValueStep extends BasePmanStep {
             super(step, context);
         }
 
-        private GetValueStep getValueStep() {
-            if (step instanceof GetValueStep) {
-                return (GetValueStep) step;
+        private GetValueTextStep getMyStep() {
+            if (this.step instanceof GetValueTextStep) {
+                return (GetValueTextStep) step;
             }
             throw new RuntimeException("The step class is not applicable");
         }
@@ -70,7 +72,7 @@ public class GetValueStep extends BasePmanStep {
         protected Object run() {
             var accountId = step.getAccountId();
             var shelfId = step.getShelfId();
-            var vName = getValueStep().getValueName();
+            var vName = getMyStep().getValueName();
 
             if (vName == null || vName.isEmpty()) {
                 throw new IllegalArgumentException("valueName argument must be not null");
@@ -78,12 +80,13 @@ public class GetValueStep extends BasePmanStep {
 
             getConfig().setApiKey(step.getApiKey());
 
-            listener.getLogger().println("Getting value for accountId="
+/*            listener.getLogger().println("Getting value for accountId="
                     + accountId.toString()
                     + "; shelfId=" + shelfId
                     + "; valueName=" + vName
                     + "; url=" + getConfig().getUrl()
-            );
+            );*/
+            log.info("getting value: {}", vName);
 
             ShelfValue shelfValue;
             if (step.isDryRun()) {
@@ -94,11 +97,16 @@ public class GetValueStep extends BasePmanStep {
                         .description("DRY RUN SAMPLE VALUE")
                         .build();
             } else {
-                shelfValue = pmanHttpClient.getValue(accountId, shelfId, vName);
+                try {
+                    shelfValue = pmanHttpClient.getValue(accountId, shelfId, vName);
+                    log.info("shelfValue: {}", shelfValue);
+                } catch (Exception ex) {
+                    return ex.getMessage();
+                }
             }
-            listener.getLogger().println("Got value: " + shelfValue);
+            //listener.getLogger().println("Got value: " + shelfValue.toString());
 
-            return shelfValue;
+            return shelfValue.getValue();
         }
     }
 

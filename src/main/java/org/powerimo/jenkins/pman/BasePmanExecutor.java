@@ -13,6 +13,9 @@ import jenkins.model.Jenkins;
 import lombok.Getter;
 import org.jenkinsci.plugins.workflow.steps.StepContext;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
+import org.powerimo.http.okhttp.BaseOkHttpApiClientLocalConfig;
+import org.powerimo.http.okhttp.BaseOkHttpClientConfig;
+import org.powerimo.pman.client.PmanHttpClient;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -21,21 +24,28 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-@Getter
 public abstract class BasePmanExecutor<T> extends StepExecution {
     private static ExecutorService executorService;
     private transient volatile Future<?> task;
-    private String threadName;
-    private Throwable stopCause;
-    protected final TaskListener listener;
-    protected final Launcher launcher;
-    private final BasePmanStep step;
+    private transient String threadName;
+    private transient Throwable stopCause;
+    protected transient final TaskListener listener;
+    protected transient final Launcher launcher;
+    protected transient final BasePmanStep step;
+    protected transient final PmanHttpClient pmanHttpClient;
+    protected transient final BaseOkHttpApiClientLocalConfig config;
 
     protected BasePmanExecutor(BasePmanStep step, @Nonnull StepContext context) throws InterruptedException, IOException {
         super(context);
         listener = context.get(TaskListener.class);
         launcher = context.get(Launcher.class);
         this.step = step;
+
+        config = BaseOkHttpApiClientLocalConfig.builder()
+                .url("https://app.powerimo.cloud/pman")
+                .build();
+        pmanHttpClient = new PmanHttpClient();
+        pmanHttpClient.setConfig(config);
     }
 
     static synchronized ExecutorService getExecutorService() {
@@ -43,7 +53,7 @@ public abstract class BasePmanExecutor<T> extends StepExecution {
             executorService = Executors.newCachedThreadPool(
                     new NamingThreadFactory(
                             new ClassLoaderSanityThreadFactory(new DaemonThreadFactory()),
-                            BasePmanExecutor.class.getCanonicalName()
+                            "org.powerimo.jenkins.pman.BasePmanExecutor"
                     )
             );
         }
@@ -66,17 +76,17 @@ public abstract class BasePmanExecutor<T> extends StepExecution {
                 }
                 getContext().onSuccess(ret);
                 result.set(true);
-            } catch (Throwable x) {
+            } catch (Throwable ex) {
                 if (stopCause == null) {
-                    getContext().onFailure(x);
+                    getContext().onFailure(ex);
                 } else {
-                    stopCause.addSuppressed(x);
+                    stopCause.addSuppressed(ex);
                 }
             } finally {
                 MDC.clear();
             }
         });
-        return result.get();
+        return false;
     }
 
     @Override
@@ -90,14 +100,13 @@ public abstract class BasePmanExecutor<T> extends StepExecution {
 
     @Override
     public void onResume() {
-        getListener().getLogger().println("");
+        listener.getLogger().println("");
         getContext().onFailure(
                 new Exception("Resume after a restart not supported for non-blocking synchronous steps"));
     }
 
     @Override
-    public @Nonnull
-    String getStatus() {
+    public String getStatus() {
         if (threadName != null) {
             return "running in thread: " + threadName;
         } else {
@@ -105,7 +114,15 @@ public abstract class BasePmanExecutor<T> extends StepExecution {
         }
     }
 
-    public String getLogPrefix() {
-        return getStep() != null ? getStep().getLogPrefix() : "[StepExecutor]";
+    protected String getLogPrefix() {
+        return step != null ? step.getLogPrefix() : "[StepExecutor]";
+    }
+
+    protected void checkApiKey() {
+        step.getAccountId();
+    }
+
+    protected BaseOkHttpApiClientLocalConfig getConfig() {
+        return config;
     }
 }
