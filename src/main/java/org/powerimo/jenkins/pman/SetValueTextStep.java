@@ -16,6 +16,7 @@ import org.jenkinsci.plugins.workflow.steps.StepDescriptor;
 import org.jenkinsci.plugins.workflow.steps.StepExecution;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
+import org.powerimo.pman.dto.ShelfValue;
 
 import java.io.IOException;
 import java.util.Set;
@@ -77,18 +78,25 @@ public class SetValueTextStep extends BasePmanStep {
                 throw new IllegalArgumentException("valueName argument must be not null");
             }
 
-            if (step.isDryRun()) {
-                listener.getLogger().println("Because dryRun=true the real value won't be set");
-                listener.getLogger().println("The value of the ShelfValue with name '" + getValueName() + "' set to '" + getMyStep().getValue() + "'");
-                return getMyStep().getValue();
-            }
-
             log.info("Value is prepared for send to PMan. accountId={}; shelfId={}, valueName={}, value={}",
                     getEffectiveAccountId(),
                     getEffectiveShelfId(),
                     getValueName(),
                     getMyStep().getValue());
-            var added = pmanHttpClient.addValue(getEffectiveAccountId(), getEffectiveShelfId(), getValueName(), getMyStep().getValue());
+
+            ShelfValue added;
+            if (step.isDryRun()) {
+                listener.getLogger().println("Because dryRun=true the real value won't be set");
+                added = ShelfValue.builder()
+                        .name(getValueName())
+                        .description("dry run")
+                        .tags("dry-run")
+                        .value(getMyStep().getValue())
+                        .build();
+            } else {
+                added = pmanHttpClient.addValue(getEffectiveAccountId(), getEffectiveShelfId(), getValueName(), getMyStep().getValue());
+            }
+
             listener.getLogger().println("Value created or updated: " + added);
             return added.getValue();
         }
