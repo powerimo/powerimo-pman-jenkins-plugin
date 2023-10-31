@@ -77,8 +77,6 @@ public class SetValueTextStep extends BasePmanStep {
                 throw new IllegalArgumentException("valueName argument must be not null");
             }
 
-            //initPmanClient();
-
             if (step.isDryRun()) {
                 listener.getLogger().println("Because dryRun=true the real value won't be set");
                 listener.getLogger().println("The value of the ShelfValue with name '" + getValueName() + "' set to '" + getMyStep().getValue() + "'");

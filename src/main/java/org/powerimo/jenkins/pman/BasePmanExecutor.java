@@ -118,10 +118,6 @@ public abstract class BasePmanExecutor<T> extends StepExecution {
         }
     }
 
-    protected String getLogPrefix() {
-        return step != null ? step.getLogPrefix() : "[StepExecutor]";
-    }
-
     protected BaseOkHttpApiClientLocalConfig getConfig() {
         return config;
     }
@@ -132,14 +128,6 @@ public abstract class BasePmanExecutor<T> extends StepExecution {
 
     public String getValueName() {
         return step.getValueName();
-    }
-
-    public void initPmanClient() {
-        try {
-            getConfig().setApiKey(getEffectiveApiKey());
-        } catch (Exception ex) {
-            throw new PmanJenkinsException("Exception on initializing PmanClient", ex);
-        }
     }
 
     protected String getEffectiveApiKey() throws IOException, InterruptedException {
@@ -156,6 +144,7 @@ public abstract class BasePmanExecutor<T> extends StepExecution {
         }
         log.trace("shelfId value for the step cannot be used: {}", step.getShelfIdString());
         EnvVars envVars = getContext().get(EnvVars.class);
+        assert envVars != null;
         String s = envVars.get(PluginConst.ENV_VAR_PMAN_SHELF_ID);
         var data = s != null ? UUID.fromString(s) : null;
         log.info("extracted effective ShelfID: {}", data);
@@ -176,15 +165,14 @@ public abstract class BasePmanExecutor<T> extends StepExecution {
         // get value from EnvVars
         EnvVars envVars = getContext().get(EnvVars.class);
         assert envVars != null;
-        envVars.forEach((item, v) -> log.info(" env var: {}={}", item, v));
 
         s = envVars.get(PluginConst.ENV_VAR_PMAN_API_KEY);
         if (s == null) {
             throw new PmanJenkinsException("No effective API Key found (parameter apiKey or environment variable " + PluginConst.ENV_VAR_PMAN_API_KEY);
         }
-        log.info("PMAN_API_KEY={}", s);
+
         try {
-            var accountPart = s.substring(0, s.indexOf(":"));
+            var accountPart = BasePmanStep.getAccountPartFromApiKey(s);
             var accountId = UUID.fromString(accountPart);
             log.info("extracted accountId: {}", accountId);
             return accountId;

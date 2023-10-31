@@ -50,7 +50,6 @@ public class GetValueStep extends BasePmanStep {
         return new GetValueStepExecutor(this, context);
     }
 
-
     public static class GetValueStepExecutor extends BasePmanExecutor {
         private static final long serialVersionUID = 895465461950089330L;
 

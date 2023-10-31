@@ -1,9 +1,6 @@
 package org.powerimo.jenkins.pman;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.jenkinsci.plugins.workflow.steps.Step;
 import org.kohsuke.stapler.DataBoundSetter;
 
@@ -39,28 +36,8 @@ public abstract class BasePmanStep extends Step implements Serializable {
     @Setter
     private String valueName;
 
-    protected String getLogPrefix() {
-        return this.getClass().getSimpleName();
-    }
-
-    protected UUID getAccountId() {
-        if (apiKey == null)
-            throw new IllegalArgumentException("apiKey argument is empty");
-        if (!apiKey.contains(":"))
-            throw new IllegalArgumentException("apiKey argument must be <UUID:accountId>:<String:Secret>");
-        String a = apiKey.substring(0, apiKey.indexOf(":"));
-        try {
-            return UUID.fromString(a);
-        } catch (Exception ex) {
-            throw new IllegalArgumentException("apiKey argument doesn't contains a valid account ID (UUID)" );
-        }
-    }
-
     protected String getAccountIdStringFromApiKey() {
-        if (apiKey == null || !apiKey.contains(":")) {
-            return null;
-        }
-        return apiKey.substring(0, apiKey.indexOf(":"));
+        return getAccountPartFromApiKey(apiKey);
     }
 
     protected UUID getShelfId() {
@@ -75,4 +52,10 @@ public abstract class BasePmanStep extends Step implements Serializable {
         return shelfId;
     }
 
+    public static String getAccountPartFromApiKey(String s) {
+        if (null == s || !s.contains(":")) {
+            return null;
+        }
+        return s.substring(0, s.indexOf(":"));
+    }
 }
